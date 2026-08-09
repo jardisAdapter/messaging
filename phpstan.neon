@@ -1,3 +1,16 @@
+# `src` only, deliberately — Bescheid Rolf 2026-08-09: "ich dachte es reicht wenn
+# src sauber geprüft ist, die tests habe ich bewusst ausgeklammert". A phpstan
+# finding in a test reaches no consumer; `composer.json`'s `autoload` ships
+# `src/` alone.
+#
+# Until this commit the list also named `tests`, but the make target passed
+# `/app/src` on the command line — and a CLI path REPLACES `paths:` instead of
+# adding to it. So the test tree was never analysed anyway: the config claimed
+# one scope, the gate ran another. This removes the claim, not a check.
+#
+# One documented exception exists in the fleet, `jardiscore/app`, because it is
+# the only package where a class in the test tree implements a published
+# interface. Its own phpstan.neon carries the reasoning.
 parameters:
     # Der Level der Analyse, z.B. von 0 bis 8
     level: 8
@@ -5,4 +18,3 @@ parameters:
     # Zu analysierende Verzeichnisse
     paths:
         - src
-        - tests
