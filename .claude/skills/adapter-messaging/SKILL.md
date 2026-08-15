@@ -180,8 +180,8 @@ new DatabaseTransportOptions(
 ```
 
 ### Schema & Dialect
-- SQL in `src/Schema/domain_events.sql`: `domain_events` (topic, payload, created_at, processed_at, attempts, last_error) + `domain_event_subscriptions` (event_id, consumer_group, processed_at, attempts, last_error).
-- Upsert auto-detects driver: MySQL → `INSERT ... ON DUPLICATE KEY UPDATE`; SQLite/PostgreSQL → `INSERT ... ON CONFLICT ... DO UPDATE`.
+- Tables: `domain_events` (topic, payload, created_at, processed_at, attempts, last_error) + `domain_event_subscriptions` (event_id, consumer_group, processed_at, attempts, last_error).
+- Upserts are treiberunabhängig dedupliziert (MySQL/PostgreSQL/SQLite).
 
 ### Point-to-Point vs Fan-Out
 | Mode | Trigger | Tracking |
