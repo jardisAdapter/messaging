@@ -118,7 +118,7 @@ $consumer->consume('orders', $handler, [
 
 ### Kafka
 
-Separate connection types for producer and consumer. Consumer group ID is configured on the connection.
+Separate connection types for producer and consumer. Consumer group ID is configured on the connection. `ConnectionFactory::kafka()`/`kafkaConsumer()` take the broker list (`host:port[,host:port,...]`) as the host argument — there is no separate port argument or env key; `KAFKA_BROKERS` is the canonical key in the Kernel bootstrap. Supplying credentials switches the connection to `SASL_SSL`/`SASL_PLAIN` automatically.
 
 ```php
 // Producer
