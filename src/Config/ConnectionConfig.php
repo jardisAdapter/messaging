@@ -46,6 +46,13 @@ readonly class ConnectionConfig
      * @param string $prefix Environment variable prefix (e.g., 'REDIS', 'KAFKA', 'RABBITMQ')
      * @param array<string, mixed> $options Additional options to merge
      * @return self
+     *
+     * Kafka note: with prefix 'KAFKA' this reads KAFKA_HOST/KAFKA_PORT, not
+     * the canonical KAFKA_BROKERS. ConnectionFactory::kafka()/kafkaConsumer()
+     * ignore the port entirely — they take the broker list
+     * (host:port[,host:port,...]) straight from the host field. Callers
+     * wiring Kafka from env should pass the KAFKA_BROKERS value into the
+     * host field directly rather than relying on this generic helper.
      */
     public static function fromEnv(string $prefix, array $options = []): self
     {
