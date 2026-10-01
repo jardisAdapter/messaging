@@ -4,7 +4,7 @@ description: Multi-transport messaging (Redis, Kafka, RabbitMQ, Database, InMemo
 user-invocable: false
 zone: post-active
 persona: C
-prerequisites: [rules-architecture, rules-patterns]
+prerequisites: [foundation-architecture, foundation-patterns]
 next: []
 ---
 
