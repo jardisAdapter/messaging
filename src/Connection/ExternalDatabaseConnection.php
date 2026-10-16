@@ -17,8 +17,9 @@ use PDO;
  * Takes either a ready PDO handle or a provider `Closure(): PDO`. A provider is
  * invoked lazily on the first {@see getClient()} and its result is reused afterwards
  * (memoized only on success). Construction, {@see connect()}, {@see disconnect()} and
- * {@see isConnected()} never call it. An exception thrown by the provider reaches the
- * caller of {@see getClient()} unchanged and the provider is called again on the next access.
+ * {@see isConnected()} never call it. An exception thrown by the provider is wrapped in a
+ * {@see ConnectionException} (original as `previous`), like every other transport reports
+ * open failures; nothing is memoized, so the provider is called again on the next access.
  *
  * Example:
  * ```php
@@ -66,7 +67,7 @@ class ExternalDatabaseConnection implements DatabaseConnectionInterface
     /**
      * Resolves a lazy provider on first call (exactly once on success).
      *
-     * @throws ConnectionException if connection is dead
+     * @throws ConnectionException if connection is dead or the provider fails to open it
      */
     public function getClient(): PDO
     {
@@ -79,7 +80,14 @@ class ExternalDatabaseConnection implements DatabaseConnectionInterface
 
         $client = $this->client;
         if ($client instanceof Closure) {
-            $client = $client();
+            try {
+                $client = $client();
+            } catch (\Exception $e) {
+                throw new ConnectionException(
+                    'External database connection provider failed: ' . $e->getMessage(),
+                    previous: $e
+                );
+            }
             $this->client = $client;
         }
 
