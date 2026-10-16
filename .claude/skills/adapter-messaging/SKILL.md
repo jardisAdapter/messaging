@@ -57,6 +57,7 @@ $connFactory->database(string $dsn, ?string $username = null, ?string $password 
 // ConnectionFactory — wrap existing clients
 $connFactory->fromRedis(Redis $redis, bool $manageLifecycle = false);
 $connFactory->fromPdo(PDO $pdo, bool $manageLifecycle = false);
+$connFactory->fromDbConnection(Closure $provider /* Closure(): PDO */, bool $manageLifecycle = false); // lazy: provider called once on first getClient(), memoized on success; isConnected()/connect()/disconnect() never call it; provider exceptions propagate unchanged
 $connFactory->fromAmqp(AMQPConnection $connection, string $exchangeName = 'amq.direct', string $exchangeType = AMQP_EX_TYPE_DIRECT, bool $manageLifecycle = false, int $exchangeFlags = AMQP_DURABLE);
 $connFactory->fromKafkaProducer(Producer $producer, bool $flushOnDisconnect = false);
 $connFactory->fromKafkaConsumer(KafkaConsumer $consumer);
@@ -165,6 +166,8 @@ $consumer->consume('InvoiceCreated', $auditHandler, ['group' => 'audit-log']);
 
 // External PDO
 $dbConn = $connFactory->fromPdo($existingPdo, manageLifecycle: false);
+// Lazy: PDO is opened by the provider on the first getClient(), shared with the caller (no own connect())
+$dbConn = $connFactory->fromDbConnection(fn (): PDO => $existingPdoProvider(), manageLifecycle: false);
 ```
 
 ### DatabaseTransportOptions

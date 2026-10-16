@@ -208,6 +208,9 @@ $publisher = new MessagePublisher($pubFactory->redis($redisConn));
 // Existing PDO instance
 $dbConn = $connFactory->fromPdo($existingPdo, manageLifecycle: false);
 
+// Lazy PDO provider: called on the first getClient(), then reused (shared connection, no own connect())
+$dbConn = $connFactory->fromDbConnection(fn (): PDO => $container->get(PDO::class), manageLifecycle: false);
+
 // Existing AMQP connection
 $rabbitConn = $connFactory->fromAmqp($amqpConnection, exchangeName: 'custom');
 
@@ -217,6 +220,8 @@ $kafkaConsumerConn = $connFactory->fromKafkaConsumer($consumer);
 ```
 
 When `manageLifecycle: false`, `disconnect()` is a no-op — the external system owns the connection lifecycle.
+
+`fromDbConnection(Closure(): PDO $provider, bool $manageLifecycle = false)` is the lazy variant of `fromPdo()`: construction, `isConnected()`, `connect()` and `disconnect()` never call the provider; the first `getClient()` resolves it exactly once and memoizes the PDO (only on success). An exception thrown by the provider reaches the caller of `getClient()` unchanged and is not memoized (the next access calls the provider again). `ExternalDatabaseConnection` also accepts the `Closure` directly.
 
 ---
 

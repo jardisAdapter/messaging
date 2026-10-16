@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JardisAdapter\Messaging\Connection;
 
+use Closure;
 use JardisSupport\Contract\Messaging\Exception\ConnectionException;
 use PDO;
 
@@ -12,6 +13,12 @@ use PDO;
  *
  * Wraps an externally managed PDO connection for reuse in messaging.
  * The external system is responsible for connection lifecycle.
+ *
+ * Takes either a ready PDO handle or a provider `Closure(): PDO`. A provider is
+ * invoked lazily on the first {@see getClient()} and its result is reused afterwards
+ * (memoized only on success). Construction, {@see connect()}, {@see disconnect()} and
+ * {@see isConnected()} never call it. An exception thrown by the provider reaches the
+ * caller of {@see getClient()} unchanged and the provider is called again on the next access.
  *
  * Example:
  * ```php
@@ -25,14 +32,18 @@ class ExternalDatabaseConnection implements DatabaseConnectionInterface
 {
     private bool $connected = true;
 
+    /** @var PDO|Closure(): PDO */
+    private PDO|Closure $client;
+
     /**
-     * @param PDO $client Externally managed PDO instance
+     * @param PDO|Closure(): PDO $client Externally managed PDO instance or lazy provider
      * @param bool $manageLifecycle If true, allows disconnect() to close connection (default: false)
      */
     public function __construct(
-        private readonly PDO $client,
+        PDO|Closure $client,
         private readonly bool $manageLifecycle = false,
     ) {
+        $this->client = $client;
     }
 
     public function connect(): void
@@ -53,6 +64,8 @@ class ExternalDatabaseConnection implements DatabaseConnectionInterface
     }
 
     /**
+     * Resolves a lazy provider on first call (exactly once on success).
+     *
      * @throws ConnectionException if connection is dead
      */
     public function getClient(): PDO
@@ -64,6 +77,12 @@ class ExternalDatabaseConnection implements DatabaseConnectionInterface
             );
         }
 
-        return $this->client;
+        $client = $this->client;
+        if ($client instanceof Closure) {
+            $client = $client();
+            $this->client = $client;
+        }
+
+        return $client;
     }
 }
