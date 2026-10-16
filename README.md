@@ -221,7 +221,7 @@ $kafkaConsumerConn = $connFactory->fromKafkaConsumer($consumer);
 
 When `manageLifecycle: false`, `disconnect()` is a no-op — the external system owns the connection lifecycle.
 
-`fromDbConnection(Closure(): PDO $provider, bool $manageLifecycle = false)` is the lazy variant of `fromPdo()`: construction, `isConnected()`, `connect()` and `disconnect()` never call the provider; the first `getClient()` resolves it exactly once and memoizes the PDO (only on success). An exception thrown by the provider reaches the caller of `getClient()` unchanged and is not memoized (the next access calls the provider again). `ExternalDatabaseConnection` also accepts the `Closure` directly.
+`fromDbConnection(Closure(): PDO $provider, bool $manageLifecycle = false)` is the lazy variant of `fromPdo()`: construction, `isConnected()`, `connect()` and `disconnect()` never call the provider; the first `getClient()` resolves it exactly once and memoizes the PDO (only on success). An exception thrown by the provider is wrapped in a `ConnectionException` (original as `previous`) — like every other transport reports open failures — and is not memoized (the next access calls the provider again). It reaches `publish()`/`consume()` as `ConnectionException`; `DatabasePublisher`/`DatabaseConsumer` wrap only `PDOException` (into `PublishException`/`ConsumerException`), so the `ConnectionException` is not re-wrapped. `ExternalDatabaseConnection` also accepts the `Closure` directly.
 
 ---
 
@@ -252,7 +252,7 @@ All exceptions extend `MessageException`:
 
 | Exception | When |
 |-----------|------|
-| `ConnectionException` | Connection fails, `getClient()` called without `connect()` |
+| `ConnectionException` | Connection fails, `getClient()` called without `connect()`, a lazy `fromDbConnection()` provider throws |
 | `PublishException` | Publishing fails, serialization error, validation failure |
 | `ConsumerException` | Consumer initialization or polling fails |
 

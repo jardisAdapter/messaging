@@ -57,7 +57,7 @@ $connFactory->database(string $dsn, ?string $username = null, ?string $password 
 // ConnectionFactory — wrap existing clients
 $connFactory->fromRedis(Redis $redis, bool $manageLifecycle = false);
 $connFactory->fromPdo(PDO $pdo, bool $manageLifecycle = false);
-$connFactory->fromDbConnection(Closure $provider /* Closure(): PDO */, bool $manageLifecycle = false); // lazy: provider called once on first getClient(), memoized on success; isConnected()/connect()/disconnect() never call it; provider exceptions propagate unchanged
+$connFactory->fromDbConnection(Closure $provider /* Closure(): PDO */, bool $manageLifecycle = false); // lazy: provider called once on first getClient(), memoized on success; isConnected()/connect()/disconnect() never call it; provider exceptions are wrapped as `ConnectionException` (original as `previous`), not memoized
 $connFactory->fromAmqp(AMQPConnection $connection, string $exchangeName = 'amq.direct', string $exchangeType = AMQP_EX_TYPE_DIRECT, bool $manageLifecycle = false, int $exchangeFlags = AMQP_DURABLE);
 $connFactory->fromKafkaProducer(Producer $producer, bool $flushOnDisconnect = false);
 $connFactory->fromKafkaConsumer(KafkaConsumer $consumer);
@@ -288,9 +288,9 @@ All extend `MessageException`.
 
 | Exception | Trigger |
 |-----------|---------|
-| `PublishException` | publishing failed |
-| `ConsumerException` | consuming failed |
-| `ConnectionException` | connection issue, incl. `getClient()` before `connect()` |
+| `PublishException` | publishing failed (Database transport: wraps `PDOException`) |
+| `ConsumerException` | consuming failed (Database transport: wraps `PDOException`) |
+| `ConnectionException` | connection issue, incl. `getClient()` before `connect()` and a failing lazy `fromDbConnection()` provider (reaches `publish()`/`consume()` as is) |
 | `MessageException` | base class |
 
 ## LAYER
