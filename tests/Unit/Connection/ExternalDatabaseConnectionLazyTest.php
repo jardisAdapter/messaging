@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace JardisAdapter\Messaging\Tests\Unit\Connection;
 
+use JardisAdapter\Messaging\Config\DatabaseTransportOptions;
 use JardisAdapter\Messaging\Connection\ExternalDatabaseConnection;
+use JardisAdapter\Messaging\Consumer\DatabaseConsumer;
 use JardisAdapter\Messaging\Factory\ConnectionFactory;
 use JardisAdapter\Messaging\Publisher\DatabasePublisher;
 use JardisSupport\Contract\Messaging\Exception\ConnectionException;
@@ -82,8 +84,9 @@ class ExternalDatabaseConnectionLazyTest extends TestCase
         $this->assertSame(1, $calls);
     }
 
-    public function testProviderExceptionReachesCallerUnchangedAndIsNotMemoized(): void
+    public function testProviderExceptionIsWrappedAsConnectionExceptionAndIsNotMemoized(): void
     {
+        // Entscheid G-B 2026-10-16: Öffnungsfehler als ConnectionException wie alle Transports
         $calls = 0;
         $pdo = $this->memoryPdo();
         $failure = new RuntimeException('provider boom');
@@ -99,8 +102,9 @@ class ExternalDatabaseConnectionLazyTest extends TestCase
         try {
             $connection->getClient();
             $this->fail('Provider exception was swallowed');
-        } catch (RuntimeException $e) {
-            $this->assertSame($failure, $e);
+        } catch (ConnectionException $e) {
+            $this->assertSame($failure, $e->getPrevious());
+            $this->assertStringContainsString('provider boom', $e->getMessage());
         }
         $this->assertSame(1, $calls);
 
@@ -108,6 +112,50 @@ class ExternalDatabaseConnectionLazyTest extends TestCase
         $this->assertSame(2, $calls);
         $connection->getClient();
         $this->assertSame(2, $calls);
+    }
+
+    public function testProviderFailureReachesPublisherAsConnectionExceptionAndIsNotMemoized(): void
+    {
+        $calls = 0;
+        $failure = new RuntimeException('provider boom');
+        $connection = (new ConnectionFactory())->fromDbConnection(function () use (&$calls, $failure): PDO {
+            $calls++;
+
+            throw $failure;
+        });
+        $publisher = new DatabasePublisher($connection);
+
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            try {
+                $publisher->publish('OrderCreated', '{"id":1}');
+                $this->fail('Provider failure was swallowed');
+            } catch (ConnectionException $e) {
+                $this->assertSame($failure, $e->getPrevious());
+            }
+            $this->assertSame($attempt, $calls);
+        }
+    }
+
+    public function testProviderFailureReachesConsumerAsConnectionExceptionAndIsNotMemoized(): void
+    {
+        $calls = 0;
+        $failure = new RuntimeException('provider boom');
+        $connection = (new ConnectionFactory())->fromDbConnection(function () use (&$calls, $failure): PDO {
+            $calls++;
+
+            throw $failure;
+        });
+        $consumer = new DatabaseConsumer($connection, new DatabaseTransportOptions(pollingIntervalMs: 0));
+
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            try {
+                $consumer->consume('OrderCreated', static fn (): bool => true);
+                $this->fail('Provider failure was swallowed');
+            } catch (ConnectionException $e) {
+                $this->assertSame($failure, $e->getPrevious());
+            }
+            $this->assertSame($attempt, $calls);
+        }
     }
 
     public function testDisconnectedManagedConnectionThrowsWithoutCallingProvider(): void
