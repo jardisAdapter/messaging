@@ -21,6 +21,7 @@ use JardisAdapter\Messaging\Connection\RabbitMqConnectionInterface;
 use JardisAdapter\Messaging\Connection\RedisConnection;
 use JardisAdapter\Messaging\Connection\RedisConnectionInterface;
 use AMQPConnection;
+use Closure;
 use PDO;
 use RdKafka\KafkaConsumer;
 use RdKafka\Producer;
@@ -122,6 +123,19 @@ final class ConnectionFactory
         bool $manageLifecycle = false
     ): DatabaseConnectionInterface {
         return new ExternalDatabaseConnection($pdo, $manageLifecycle);
+    }
+
+    /**
+     * Lazy variant of {@see fromPdo()}: the provider is called on the first
+     * `getClient()` (not on construction) and its PDO is shared, no own connect().
+     *
+     * @param Closure(): PDO $provider
+     */
+    public function fromDbConnection(
+        Closure $provider,
+        bool $manageLifecycle = false
+    ): DatabaseConnectionInterface {
+        return new ExternalDatabaseConnection($provider, $manageLifecycle);
     }
 
     public function fromAmqp(
